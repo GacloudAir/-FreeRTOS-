@@ -54,8 +54,13 @@ namespace PageManager {
     DisplayService::endFrame();
   }
 
-  void handleInput(InputService::Button btn) {
+    void handleInput(InputService::Event evt)
+  {
     if (top < 0) return;
-    stack[top]->onInput(btn);
+    if (evt.type == InputService::EVT_SHORT) {
+      stack[top]->onInput(evt.button);
+    } else if (evt.type == InputService::EVT_LONG) {
+      stack[top]->onLongPress(evt.button);
+    }
   }
 }

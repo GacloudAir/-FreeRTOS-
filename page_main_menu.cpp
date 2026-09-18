@@ -2,10 +2,13 @@
 #include "page_manager.h"
 #include "page_settings.h"
 #include "settings.h"
+#include "page_file_manager.h"
 
-namespace {
+namespace 
+{
   const char* items[PageMainMenu::ITEM_COUNT] = {
     "Settings",
+    "Files",
     "About",
     "Exit"
   };
@@ -41,14 +44,22 @@ void PageMainMenu::onInput(InputService::Button btn) {
     PageManager::draw();
   }
   else if (btn == InputService::BTN_OK) {
-    if (cursor == 0) {
-      PageManager::push(&settingsPage);
-    }
-    else if (cursor == 1) {
-      // About 页面（可后续实现）
-    }
-    else {
-      // Exit 页面（可后续实现）
+    
+// onInput 中：
+if (btn == InputService::BTN_OK) 
+    {
+      if (cursor == 0) {
+        PageManager::push(&settingsPage);
+      }
+      else if (cursor == 1) {
+        PageManager::push(&fileManagerPage);
+      }
+      else if (cursor == 2) {
+        // About 页面（后续实现）
+      }
+      else {
+        // Exit（后续实现）
+      }
     }
   }
 }

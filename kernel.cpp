@@ -29,9 +29,9 @@ void Kernel::init() {
 }
 
 void Kernel::run() {
-  InputService::Button btn = InputService::poll();
-  if (btn != InputService::BTN_NONE) {
-    PageManager::handleInput(btn);
+  InputService::Event evt = InputService::poll();
+  if (evt.type != InputService::EVT_NONE) {
+    PageManager::handleInput(evt);
   }
   delay(20);
 }

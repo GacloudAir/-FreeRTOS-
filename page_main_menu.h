@@ -8,7 +8,7 @@ public:
   void onInput(InputService::Button btn) override;
   const char* name() const override { return "MainMenu"; }
 
-  static const int ITEM_COUNT = 3;   // ← 移到 public
+  static const int ITEM_COUNT = 4;   // ← 移到 public
 
 private:
   int cursor = 0;

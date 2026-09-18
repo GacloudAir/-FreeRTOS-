@@ -4,16 +4,29 @@
 namespace StorageService {
 
   bool begin() {
-    if (!LittleFS.begin()) {
-      Serial.println("LittleFS mount failed, formatting...");
-      LittleFS.format();
-      if (!LittleFS.begin()) {
-        Serial.println("LittleFS mount failed after format!");
-        return false;
-      }
+    // 第一次尝试挂载
+    if (LittleFS.begin()) {
+      Serial.println("LittleFS mounted.");
+      return true;
     }
-    Serial.println("LittleFS mounted.");
-    return true;
+
+    Serial.println("LittleFS mount failed, formatting...");
+    LittleFS.format();
+    delay(100);
+
+    // 格式化后重试最多 3 次
+    for (int i = 0; i < 3; i++) {
+      if (LittleFS.begin()) {
+        Serial.println("LittleFS mounted after format.");
+        return true;
+      }
+      Serial.print("Retry mount ");
+      Serial.println(i + 1);
+      delay(200);
+    }
+
+    Serial.println("LittleFS mount failed after format!");
+    return false;
   }
 
   String read(const char* path) {
@@ -39,4 +52,20 @@ namespace StorageService {
   bool remove(const char* path) {
     return LittleFS.remove(path);
   }
+
+  int listDir(const char* path, FileInfo* out, int maxCount) {
+    File dir = LittleFS.open(path, "r");
+    if (!dir || !dir.isDirectory()) return 0;
+
+    int count = 0;
+    File f = dir.openNextFile();
+    while (f && count < maxCount) {
+      out[count].name = String(f.name());
+      out[count].size = f.size();
+      count++;
+      f = dir.openNextFile();
+    }
+    return count;
+  }
+
 }

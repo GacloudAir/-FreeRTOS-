@@ -3,12 +3,23 @@
 
 namespace InputService {
   enum Button {
-    BTN_NONE,
+    BTN_NONE = 0,
     BTN_UP,
     BTN_DOWN,
     BTN_OK
   };
 
+  enum EventType {
+    EVT_NONE = 0,
+    EVT_SHORT,
+    EVT_LONG
+  };
+
+  struct Event {
+    Button button;
+    EventType type;
+  };
+
   void init();
-  Button poll();   // 每次调用返回一个按键事件，无按键返回 BTN_NONE
+  Event poll();
 }
