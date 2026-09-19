@@ -1,11 +1,12 @@
 #pragma once
-#include <GxEPD2_3C.h>
-
-// 对外暴露 display 对象，供 UI 层绘制使用
-extern GxEPD2_3C<GxEPD2_270c, GxEPD2_270c::HEIGHT> display;
+#include "EPD.h"
+#include "EPaper_213_Driver.h"
 
 namespace DisplayService {
-  void init();              // 初始化 SPI 和屏幕
-  void beginFrame(int rotation);  // 开始一帧绘制
-  void endFrame();          // 结束一帧并休眠
+  void flushGray(uint8_t* grayBuffer);   // 传输灰度缓冲区到屏幕
+  void init();
+  uint8_t* buffer();
+  void flush();
+  int width();
+  int height();
 }

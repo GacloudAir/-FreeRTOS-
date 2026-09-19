@@ -1,6 +1,8 @@
 #pragma once
 #include "page.h"
 #include "storage_service.h"
+#include "layout.h"  
+
 
 class PageFileManager : public Page {
 public:
@@ -11,7 +13,7 @@ public:
   const char* name() const override { return "Files"; }
 
   static const int MAX_FILES     = 50;
-  static const int ROWS_PER_PAGE = 6;
+  static const int ROWS_PER_PAGE = Layout::ITEMS_PER_PAGE;
 
 private:
   StorageService::FileInfo files[MAX_FILES];

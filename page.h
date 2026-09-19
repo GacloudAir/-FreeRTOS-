@@ -12,4 +12,5 @@ public:
   virtual void onInput(InputService::Button btn) {}       // 短按
   virtual void onLongPress(InputService::Button btn) {}   // 长按
   virtual const char* name() const = 0;
+  virtual bool customRender() const { return false; }
 };
