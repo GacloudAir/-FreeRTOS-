@@ -3,15 +3,18 @@
 
 namespace Settings {
 
+  constexpr int REFRESH_BLOCKING = 0;
+  constexpr int REFRESH_SMART    = 1;
+
   struct Data {
-    int  version;        // 配置版本号，便于未来迁移
-    int  page;
-    int  colorMode;      // 1 = 黑白红，0 = 黑白
-    int  rotation;       // 0~3
+    int version;
+    int page;
+    int rotation;
+    int refreshMode;   // 0=阻塞, 1=智能
   };
 
-  Data& get();                        // 获取当前设置（可读可写）
-  void  load();                       // 从 /settings.json 读取
-  bool  save();                       // 写入 /settings.json
-  void  resetToDefaults();            // 恢复出厂设置
+  Data& get();
+  void  load();
+  bool  save();
+  void  resetToDefaults();
 }

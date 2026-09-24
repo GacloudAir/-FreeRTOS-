@@ -19,6 +19,7 @@ namespace GraphicsAPI {
   void setCursor(int x, int y);
   void print(const char* str);
   void print(int num);
+  void print(const String& str);
   void drawBitmap(int x, int y, const uint8_t* bitmap, int w, int h, Color color);
   void drawRect(int x, int y, int w, int h, Color color);
   void fillRect(int x, int y, int w, int h, Color color);

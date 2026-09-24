@@ -3,29 +3,15 @@
 
 namespace StorageService {
 
-  bool begin() {
-    // 第一次尝试挂载
-    if (LittleFS.begin()) {
-      Serial.println("LittleFS mounted.");
-      return true;
-    }
-
-    Serial.println("LittleFS mount failed, formatting...");
+  bool begin() 
+  {
+    if (LittleFS.begin()) return true;
     LittleFS.format();
     delay(100);
-
-    // 格式化后重试最多 3 次
     for (int i = 0; i < 3; i++) {
-      if (LittleFS.begin()) {
-        Serial.println("LittleFS mounted after format.");
-        return true;
-      }
-      Serial.print("Retry mount ");
-      Serial.println(i + 1);
+      if (LittleFS.begin()) return true;
       delay(200);
     }
-
-    Serial.println("LittleFS mount failed after format!");
     return false;
   }
 

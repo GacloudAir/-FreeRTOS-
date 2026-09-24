@@ -1,0 +1,1 @@
+-D__FREERTOS=1//用于启用FreeRTOS的主要功能

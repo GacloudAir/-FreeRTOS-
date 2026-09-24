@@ -3,12 +3,16 @@
 #include "bmp_reader.h"
 #include <string.h>
 #include "display_service.h"
+#include "page_confirm_dialog.h"
 
 PageImageViewer imageViewerPage;
 
 bool PageImageViewer::open(const char* path) {
   loaded = bmp_load_1bit(path, bitmap, IMG_W, IMG_H);
   grayMode = false;
+
+  strncpy(currentPath, path, sizeof(currentPath) - 1);
+  currentPath[sizeof(currentPath) - 1] = '\0';// 保存路径
   
   if (!loaded) {
     // 1-bit 失败，尝试 8-bit 灰度
@@ -44,6 +48,7 @@ void PageImageViewer::onInput(InputService::Button btn) {
 
 void PageImageViewer::onLongPress(InputService::Button btn) {
   if (btn == InputService::BTN_OK) {
-    PageManager::pop();
+    confirmDialog.setup(currentPath);
+    PageManager::push(&confirmDialog);
   }
 }

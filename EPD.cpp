@@ -17,12 +17,10 @@ void EPD_Init()
   SPI.begin();
   SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 
-  Serial.println("Initializing EPD.");
   digitalWrite(EPD_RST_PIN, LOW);
   delay(100);
   digitalWrite(EPD_RST_PIN, HIGH);
   delay(100);
-  Serial.println("EPD Initializing Complete.");
 }
 
 void hardwareSpi(uint8_t data)

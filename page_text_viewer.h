@@ -23,6 +23,7 @@ private:
   int   lineCount = 0;
   int   topLine   = 0;
   char  title[20] = {0};
+  char  currentPath[80] = {0};
 
   void parseLines();
 };

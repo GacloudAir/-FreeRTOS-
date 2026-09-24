@@ -35,7 +35,21 @@ namespace SerialUpload {
       return false;
     }
 
-    if (cmd.startsWith("LS ")) {
+    if (cmd == "REBOOT") {
+      Serial.println("OK");
+      Serial.flush();
+      delay(200);
+      rp2040.reboot();
+      return false;
+    }
+
+    if (cmd == "PING") {
+      Serial.println("PONG");
+      return false;
+    }
+    
+    if (cmd.startsWith("LS ")) 
+    {
       String path = cmd.substring(3);
       File dir = LittleFS.open(path.c_str(), "r");
       if (!dir || !dir.isDirectory()) {
@@ -111,7 +125,6 @@ namespace SerialUpload {
       }
       return true;
     }
-
     Serial.println("ERR unknown cmd");
     return false;
   }
