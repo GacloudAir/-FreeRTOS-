@@ -1,10 +1,9 @@
 #include "page_file_manager.h"
 #include "page_manager.h"
-#include "settings.h"
-#include "layout.h"
-#include "page_text_viewer.h"
 #include "page_text_viewer.h"
 #include "page_image_viewer.h"
+#include "settings.h"
+#include "layout.h"
 
 PageFileManager fileManagerPage;
 
@@ -31,11 +30,9 @@ void PageFileManager::onDraw(GraphicsAPI::Color accent) {
   GraphicsAPI::print(fileCount);
   GraphicsAPI::print(")");
 
-  // 右上角显示页码
   int totalPages = (fileCount + Layout::ITEMS_PER_PAGE - 1) / Layout::ITEMS_PER_PAGE;
   int currentPage = scrollTop / Layout::ITEMS_PER_PAGE + 1;
-
-  GraphicsAPI::setCursor(170, Layout::TITLE_Y);
+  GraphicsAPI::setCursor(175, Layout::TITLE_Y);
   GraphicsAPI::print("[");
   GraphicsAPI::print(currentPage);
   GraphicsAPI::print("/");
@@ -73,31 +70,29 @@ void PageFileManager::onDraw(GraphicsAPI::Color accent) {
   }
 }
 
+// ============ 短按：移动光标 / 打开文件 ============
 void PageFileManager::onInput(InputService::Button btn) {
   if (btn == InputService::BTN_UP) {
     if (cursor > 0) cursor--;
     ensureCursorVisible();
-    PageManager::draw();
+    PageManager::markDirty();
   }
   else if (btn == InputService::BTN_DOWN) {
     if (cursor + 1 < fileCount) cursor++;
     ensureCursorVisible();
-    PageManager::draw();
+    PageManager::markDirty();
   }
-  else if (btn == InputService::BTN_OK) 
-  {
+  else if (btn == InputService::BTN_OK) {
     if (cursor >= fileCount) return;
     String name = files[cursor].name;
     String lower = name;
     lower.toLowerCase();
 
-    if (lower.endsWith(".bmp")) 
-    {
+    if (lower.endsWith(".bmp")) {
       if (imageViewerPage.open(name.c_str())) {
         PageManager::push(&imageViewerPage);
       }
-    } else 
-    {
+    } else {
       if (textViewerPage.open(name.c_str())) {
         PageManager::push(&textViewerPage);
       }
@@ -105,22 +100,23 @@ void PageFileManager::onInput(InputService::Button btn) {
   }
 }
 
+// ============ 长按：翻页 / 返回主菜单 ============
 void PageFileManager::onLongPress(InputService::Button btn) {
   if (btn == InputService::BTN_UP) {
     if (scrollTop >= Layout::ITEMS_PER_PAGE) {
       scrollTop -= Layout::ITEMS_PER_PAGE;
       cursor = scrollTop;
-      PageManager::draw();
+      PageManager::markDirty();
     }
   }
   else if (btn == InputService::BTN_DOWN) {
     if (scrollTop + Layout::ITEMS_PER_PAGE < fileCount) {
       scrollTop += Layout::ITEMS_PER_PAGE;
       cursor = scrollTop;
-      PageManager::draw();
+      PageManager::markDirty();
     }
   }
   else if (btn == InputService::BTN_OK) {
-    PageManager::pop();
+    PageManager::pop();   // 长按 OK 返回主菜单
   }
 }

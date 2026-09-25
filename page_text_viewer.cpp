@@ -2,12 +2,16 @@
 #include "page_manager.h"
 #include "storage_service.h"
 #include <string.h>
+#include "page_confirm_dialog.h"
 
 PageTextViewer textViewerPage;
 
 bool PageTextViewer::open(const char* path) {
   String content = StorageService::read(path);
   if (content.length() == 0) return false;
+
+  strncpy(currentPath, path, sizeof(currentPath) - 1);// 保存路径
+  currentPath[sizeof(currentPath) - 1] = '\0';
 
   int totalBytes = content.length();
   if (totalBytes > (int)sizeof(buffer) - 1) {
@@ -124,25 +128,21 @@ void PageTextViewer::onDraw(GraphicsAPI::Color accent)
 
 void PageTextViewer::onInput(InputService::Button btn) {
   if (btn == InputService::BTN_UP) {
-    if (topLine > 0) {
-      topLine--;
-      PageManager::draw();
-    }
+    if (topLine > 0) { topLine--; PageManager::markDirty(); }
   }
   else if (btn == InputService::BTN_DOWN) {
-    if (topLine + LINES_VISIBLE < lineCount) {
-      topLine++;
-      PageManager::draw();
-    }
+    if (topLine + LINES_VISIBLE < lineCount) { topLine++; PageManager::markDirty(); }
   }
-  // 短按 OK 无操作
+  else if (btn == InputService::BTN_OK) {
+    PageManager::pop();   // 短按 OK 退出
+  }
 }
 
 void PageTextViewer::onLongPress(InputService::Button btn) {
   if (btn == InputService::BTN_UP) {
     if (topLine >= LINES_VISIBLE) topLine -= LINES_VISIBLE;
     else                          topLine = 0;
-    PageManager::draw();
+    PageManager::markDirty();
   }
   else if (btn == InputService::BTN_DOWN) {
     topLine += LINES_VISIBLE;
@@ -150,9 +150,10 @@ void PageTextViewer::onLongPress(InputService::Button btn) {
       topLine = lineCount - LINES_VISIBLE;
       if (topLine < 0) topLine = 0;
     }
-    PageManager::draw();
+    PageManager::markDirty();
   }
   else if (btn == InputService::BTN_OK) {
-    PageManager::pop();
+    confirmDialog.setup(currentPath);
+    PageManager::push(&confirmDialog);
   }
 }

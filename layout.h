@@ -13,6 +13,9 @@ namespace Layout {
   // 三行选项，每行中心 y
   constexpr int ROW_Y[3] = {36, 62, 88};
 
+  // Settings 页专用偏移
+  constexpr int SETTINGS_X_SHIFT = -3;
+
   // 选项框高度
   constexpr int BOX_H = 20;
 

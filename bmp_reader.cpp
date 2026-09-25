@@ -14,21 +14,15 @@ namespace {
 
 bool bmp_load_1bit(const char* path, uint8_t* dst, int dstW, int dstH) {
   File f = LittleFS.open(path, "r");
-  if (!f) {
-    Serial.print("BMP: cannot open ");
-    Serial.println(path);
-    return false;
-  }
+  if (!f) return false;
 
   uint8_t header[HEADER_SIZE];
   if (f.read(header, HEADER_SIZE) != HEADER_SIZE) {
-    Serial.println("BMP: header read failed");
     f.close();
     return false;
   }
 
   if (header[0] != 'B' || header[1] != 'M') {
-    Serial.println("BMP: invalid signature");
     f.close();
     return false;
   }
@@ -56,18 +50,11 @@ bool bmp_load_1bit(const char* path, uint8_t* dst, int dstW, int dstH) {
                        | (header[OFF_COMPRESSION + 2] << 16)
                        | (header[OFF_COMPRESSION + 3] << 24);
 
-  Serial.print("BMP: "); Serial.print(width); Serial.print("x"); Serial.print(height);
-  Serial.print(" bit="); Serial.print(bitCount);
-  Serial.print(" comp="); Serial.println(compression);
-
   if (bitCount != 1 || compression != 0) {
-    Serial.println("BMP: only 1-bit uncompressed supported");
     f.close();
     return false;
   }
   if (width != dstW || abs(height) != dstH) {
-    Serial.print("BMP: size mismatch, expected ");
-    Serial.print(dstW); Serial.print("x"); Serial.println(dstH);
     f.close();
     return false;
   }
@@ -83,7 +70,6 @@ bool bmp_load_1bit(const char* path, uint8_t* dst, int dstW, int dstH) {
 
     uint8_t rowBuf[64];
     if (f.read(rowBuf, bmpRowBytes) != (int)bmpRowBytes) {
-      Serial.println("BMP: pixel read failed");
       f.close();
       return false;
     }
@@ -116,7 +102,6 @@ bool bmp_load_8bit_gray(const char* path, uint8_t* dst, int dstW, int dstH)
   uint32_t dataOffset = header[10] | (header[11] << 8) | (header[12] << 16) | (header[13] << 24);
 
   if (bitCount != 8 || compression != 0) {
-    Serial.println("BMP: only 8-bit uncompressed supported");
     f.close();
     return false;
   }

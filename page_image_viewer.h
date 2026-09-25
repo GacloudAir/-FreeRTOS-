@@ -21,6 +21,8 @@ private:
   uint8_t bitmap[IMG_BYTES];
   char    title[24] = {0};
   bool    loaded = false;
+  char  currentPath[80] = {0};
+
 };
 
 extern PageImageViewer imageViewerPage;

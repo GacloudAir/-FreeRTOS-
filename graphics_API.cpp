@@ -58,6 +58,10 @@ namespace GraphicsAPI
   void setCursor(int x, int y)               { canvas.setCursor(x, y); }
   void print(const char* str)                { canvas.print(str); }
   void print(int num)                        { canvas.print(num); }
+  void print(const String& str) 
+  {
+    canvas.print(str);
+  }
   void drawRect(int x, int y, int w, int h, Color color)
                                              { canvas.drawRect(x, y, w, h, toGfxColor(color)); }
   void fillRect(int x, int y, int w, int h, Color color)
@@ -93,30 +97,30 @@ int drawChineseChar(int x, int y, uint16_t codepoint, Color color) {
   return 12;
 }
 
-void printUTF8(int x, int y, const char* s, Color color) {
-  int cx = x;
-  int i = 0;
-  while (s[i]) {
-    int next = 0;
-    uint16_t cp = utf8_decode(s + i, &next);
-    i += next;
+  void printUTF8(int x, int y, const char* s, Color color) {
+    int cx = x;
+    int i = 0;
+    while (s[i]) {
+      int next = 0;
+      uint16_t cp = utf8_decode(s + i, &next);
+      i += next;
 
-    if (cp < 0x80) {
-      // ASCII：用 GFX 内置字体
-      canvas.setTextColor(toGfxColor(color));
-      canvas.setCursor(cx, y + 3);   // 基线对齐到 12px 行高
-      canvas.write((char)cp);
-      cx += 6;
-    } else {
-      int w = drawChineseChar(cx, y, cp, color);
-      if (w == 0) {
-        // 缺字：画一个空心方框提示
-        canvas.drawRect(cx, y, 12, 12, toGfxColor(color));
-        w = 12;
+      if (cp < 0x80) {
+        // ASCII：用 GFX 内置字体
+        canvas.setTextColor(toGfxColor(color));
+        canvas.setCursor(cx, y + 3);   // 基线对齐到 12px 行高
+        canvas.write((char)cp);
+        cx += 6;
+      } else {
+        int w = drawChineseChar(cx, y, cp, color);
+        if (w == 0) {
+          // 缺字：画一个空心方框提示
+          canvas.drawRect(cx, y, 12, 12, toGfxColor(color));
+          w = 12;
+        }
+        cx += w;
       }
-      cx += w;
     }
   }
-}
 
 }

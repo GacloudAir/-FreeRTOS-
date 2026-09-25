@@ -9,7 +9,7 @@ public:
   void onLongPress(InputService::Button btn) override;
   const char* name() const override { return "Settings"; }
 
-  static const int ITEM_COUNT = 1;   // 只保留 Rotation
+  static const int ITEM_COUNT = 2;   // Rotation, Refresh
 
 private:
   int cursor = 0;

@@ -8,8 +8,13 @@ public:
   void onInput(InputService::Button btn) override;
   const char* name() const override { return "MainMenu"; }
 
-  static const int ITEM_COUNT = 4;   // ← 移到 public
+  // 前 2 项固定（Settings、Files），最后 1 项固定（Exit）
+  static const int FIXED_HEAD = 2;
+  static const int FIXED_TAIL = 1;
 
 private:
   int cursor = 0;
+
+  int totalItems() const;             // 动态：2 + 应用数 + 1
+  const char* labelFor(int idx) const;
 };
