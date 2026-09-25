@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RP2040 墨水屏配置</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 20px;
+    background: #f5f5f5;
+    color: #333;
+  }
+  h1 { font-size: 1.4em; margin: 0 0 20px; }
+  h2 { font-size: 1.05em; margin: 0 0 12px; color: #555; }
+  .card {
+    background: white;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  .status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .status.off { background: #eee; color: #888; }
+  .status.on  { background: #d4edda; color: #155724; }
+  .status.err { background: #f8d7da; color: #721c24; }
+  .status.busy{ background: #fff3cd; color: #856404; }
+  label {
+    display: block;
+    margin: 12px 0 4px;
+    font-size: 0.9em;
+    color: #666;
+  }
+  input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1em;
+    font-family: inherit;
+  }
+  input:focus { outline: none; border-color: #0066cc; }
+  button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: #0066cc;
+    color: white;
+    font-size: 1em;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.15s;
+  }
+  button:hover:not(:disabled) { background: #0052a3; }
+  button:disabled { background: #ccc; cursor: not-allowed; }
+  button.secondary { background: #666; }
+  button.secondary:hover:not(:disabled) { background: #4d4d4d; }
+  button.danger { background: #d9534f; }
+  button.danger:hover:not(:disabled) { background: #c9302c; }
+  pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.82em;
+    font-family: "Consolas", "Monaco", monospace;
+    overflow-y: auto;
+    max-height: 300px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0;
+    min-height: 120px;
+  }
+  .hint {
+    font-size: 0.82em;
+    color: #888;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+  .row { display: flex; gap: 8px; }
+  .row button { flex: 1; margin-top: 10px; }
+  .banner {
+    background: #fff3cd;
+    color: #856404;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 0.88em;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<h1>RP2040 墨水屏配置</h1>
+
+<div id="banner" class="banner"></div>
+
+<!-- ============ 连接卡片 ============ -->
+<div class="card">
+  <h2>设备连接</h2>
+  <button id="btnConnect">连接设备</button>
+  <button id="btnDisconnect" class="secondary" disabled>断开连接</button>
+  <span id="status" class="status off">未连接</span>
+  <div class="hint">
+    需要 Chrome 或 Edge 89+。<br>
+    连接前请关闭 Arduino IDE 的串口监视器，避免端口占用。
+  </div>
+</div>
+
+<!-- ============ WiFi 配置卡片 ============ -->
+<div class="card">
+  <h2>WiFi 配置</h2>
+  <label>WiFi 名称（SSID）</label>
+  <input id="ssid" type="text" placeholder="  " autocomplete="off" spellcheck="false">
+  <label>WiFi 密码</label>
+  <input id="password" type="password" placeholder="至少 8 位" autocomplete="off">
+  <button id="btnSave" disabled>保存并重启设备</button>
+  <div class="hint">
+    仅支持 2.4GHz WiFi。保存后设备会自动重启，串口会短暂断开。
+  </div>
+</div>
+
+<!-- ============ 设备操作卡片 ============ -->
+<div class="card">
+  <h2>设备操作</h2>
+  <div class="row">
+    <button id="btnPing" class="secondary" disabled>Ping</button>
+    <button id="btnList" class="secondary" disabled>列出文件</button>
+  </div>
+  <div class="row">
+    <button id="btnClear" class="secondary" disabled>清除 WiFi 配置</button>
+  </div>
+  <button id="btnReboot" class="danger" disabled>仅重启设备</button>
+</div>
+
+<!-- ============ 输出卡片 ============ -->
+<div class="card">
+  <h2>输出日志</h2>
+  <pre id="output">等待操作...</pre>
+  <button id="btnClearLog" class="secondary">清空日志</button>
+</div>
+
+<script>
+"use strict";
+
+// ============ 全局状态 ============
+let port = null;
+let writer = null;
+let reader = null;
+let readBuffer = "";
+let onLineCallback = null;
+let isReading = false;
+
+const $ = id => document.getElementById(id);
+const statusEl = $("status");
+const outputEl = $("output");
+const bannerEl = $("banner");
+
+// ============ 日志 ============
+function log(msg) {
+  const t = new Date().toLocaleTimeString();
+  outputEl.textContent = `[${t}] ${msg}\n` + outputEl.textContent;
+}
+
+function showBanner(msg) {
+  bannerEl.textContent = msg;
+  bannerEl.classList.add("show");
+  setTimeout(() => bannerEl.classList.remove("show"), 6000);
+}
+
+function setStatus(text, cls) {
+  statusEl.textContent = text;
+  statusEl.className = "status " + cls;
+}
+
+// ============ 读取循环 ============
+async function readLoop() {
+  if (!port || !port.readable || isReading) return;
+  isReading = true;
+
+  try {
+    reader = port.readable.getReader();
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (value && value.length > 0) {
+        handleText(value);
+      }
+    }
+  } catch (e) {
+    if (e.name !== "NetworkError" && e.name !== "TypeError") {
+      log("读取错误：" + e.message);
+    }
+  } finally {
+    isReading = false;
+    try {
+      if (reader) { reader.releaseLock(); reader = null; }
+    } catch (e) {}
+  }
+}
+
+function handleText(bytes) {
+  const text = new TextDecoder().decode(bytes);
+  readBuffer += text;
+
+  let idx;
+  while ((idx = readBuffer.indexOf("\n")) >= 0) {
+    const line = readBuffer.substring(0, idx).replace(/\r$/, "");
+    readBuffer = readBuffer.substring(idx + 1);
+
+    if (onLineCallback) {
+      const cb = onLineCallback;
+      onLineCallback = null;
+      cb(line);
+    } else {
+      log("← " + line);
+    }
+  }
+}
+
+// ============ 等待单行响应 ============
+function waitForLine(timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      onLineCallback = null;
+      reject(new Error("超时"));
+    }, timeoutMs);
+    onLineCallback = (line) => {
+      clearTimeout(timer);
+      resolve(line);
+    };
+  });
+}
+
+// ============ 发送命令 ============
+async function sendCmd(cmd) {
+  if (!writer) throw new Error("未连接");
+  await writer.write(new TextEncoder().encode(cmd + "\n"));
+}
+
+// ============ 连接 ============
+$("btnConnect").onclick = async () => {
+  if (port) {
+    log("端口已连接，如需重连请先断开");
+    return;
+  }
+
+  try {
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+
+    writer = port.writable.getWriter();
+    setStatus("已连接", "on");
+
+    $("btnConnect").disabled = true;
+    $("btnDisconnect").disabled = false;
+    ["btnSave", "btnPing", "btnList", "btnClear", "btnReboot"].forEach(
+      id => $(id).disabled = false
+    );
+
+    // 启动读取循环
+    readLoop();
+
+    // 等一小会，让设备端输出稳定
+    await new Promise(r => setTimeout(r, 500));
+
+    // 测试连接
+    await sendCmd("PING");
+    const resp = await waitForLine(3000);
+    if (resp === "PONG") {
+      log("设备响应正常");
+    } else {
+      log("意外响应：" + resp);
+    }
+  } catch (e) {
+    log("连接失败：" + e.message);
+    if (e.message && e.message.includes("already open")) {
+      showBanner("端口已被占用。请关闭 Arduino IDE 串口监视器，然后刷新页面。");
+    }
+    // 清理半开状态
+    try {
+      if (reader) { await reader.cancel(); reader = null; }
+      if (writer) { writer.releaseLock(); writer = null; }
+      if (port) { await port.close(); port = null; }
+    } catch (e2) {}
+    setStatus("连接失败", "err");
+  }
+};
+
+// ============ 断开 ============
+$("btnDisconnect").onclick = async () => {
+  try {
+    if (reader) {
+      try { await reader.cancel(); } catch (e) {}
+      try { reader.releaseLock(); } catch (e) {}
+      reader = null;
+    }
+    if (writer) {
+      try { writer.releaseLock(); } catch (e) {}
+      writer = null;
+    }
+    if (port) {
+      try { await port.close(); } catch (e) {}
+      port = null;
+    }
+    readBuffer = "";
+    onLineCallback = null;
+    isReading = false;
+
+    setStatus("未连接", "off");
+    $("btnConnect").disabled = false;
+    $("btnDisconnect").disabled = true;
+    ["btnSave", "btnPing", "btnList", "btnClear", "btnReboot"].forEach(
+      id => $(id).disabled = true
+    );
+    log("已断开连接");
+  } catch (e) {
+    log("断开失败：" + e.message);
+  }
+};
+
+// ============ Ping ============
+$("btnPing").onclick = async () => {
+  try {
+    await sendCmd("PING");
+    const resp = await waitForLine(3000);
+    log("Ping: " + resp);
+  } catch (e) {
+    log("Ping 失败：" + e.message);
+  }
+};
+
+// ============ 列出文件 ============
+$("btnList").onclick = async () => {
+  try {
+    await sendCmd("LS /");
+    log("文件列表：");
+    const t0 = Date.now();
+    while (Date.now() - t0 < 15000) {
+      const line = await waitForLine(5000);
+      if (line === "END") break;
+      log("  " + line);
+    }
+  } catch (e) {
+    log("列表失败：" + e.message);
+  }
+};
+
+// ============ 保存 WiFi ============
+$("btnSave").onclick = async () => {
+  const ssid = $("ssid").value.trim();
+  const pwd  = $("password").value;
+
+  if (!ssid) { alert("请填写 WiFi 名称"); return; }
+  if (pwd.length < 8) { alert("密码至少 8 位"); return; }
+
+  try {
+    const json = JSON.stringify({ ssid, password: pwd });
+    const data = new TextEncoder().encode(json);
+    log(`上传 /wifi.json（${data.length} 字节）...`);
+
+    // PUT 命令
+    await sendCmd(`PUT /wifi.json ${data.length}`);
+    const ready = await waitForLine(5000);
+    if (ready !== "READY") {
+      log("设备拒绝接收：" + ready);
+      return;
+    }
+
+    // 发送 JSON 数据
+    await writer.write(data);
+
+    // 等待 OK
+    const resp = await waitForLine(10000);
+    if (resp === "OK") {
+      log("WiFi 配置已保存");
+    } else {
+      log("保存失败：" + resp);
+      return;
+    }
+
+    // 重启
+    await sendCmd("REBOOT");
+    log("设备重启中...");
+    log("串口将在几秒后断开。");
+
+    // 3 秒后主动释放端口
+    setTimeout(async () => {
+      try {
+        if (reader) { try { await reader.cancel(); } catch (e) {} reader = null; }
+        if (writer) { try { writer.releaseLock(); } catch (e) {} writer = null; }
+        if (port)   { try { await port.close(); } catch (e) {} port = null; }
+        setStatus("设备已重启", "off");
+        $("btnConnect").disabled = false;
+        $("btnDisconnect").disabled = true;
+        ["btnSave", "btnPing", "btnList", "btnClear", "btnReboot"].forEach(
+          id => $(id).disabled = true
+        );
+      } catch (e) {}
+    }, 3000);
+  } catch (e) {
+    log("保存失败：" + e.message);
+  }
+};
+
+// ============ 清除 WiFi 配置 ============
+$("btnClear").onclick = async () => {
+  if (!confirm("确定要清除 WiFi 配置吗？设备将重启并进入未配置状态。")) return;
+  try {
+    await sendCmd("RM /wifi.json");
+    const resp = await waitForLine(3000);
+    log("删除：" + resp);
+    await sendCmd("REBOOT");
+    log("设备重启中...");
+  } catch (e) {
+    log("清除失败：" + e.message);
+  }
+};
+
+// ============ 仅重启 ============
+$("btnReboot").onclick = async () => {
+  if (!confirm("确定要重启设备吗？")) return;
+  try {
+    await sendCmd("REBOOT");
+    log("设备重启中...");
+  } catch (e) {
+    log("重启失败：" + e.message);
+  }
+};
+
+// ============ 清空日志 ============
+$("btnClearLog").onclick = () => {
+  outputEl.textContent = "等待操作...";
+};
+
+// ============ 页面关闭时释放端口 ============
+window.addEventListener("beforeunload", async (e) => {
+  try {
+    if (reader) { try { await reader.cancel(); } catch (e) {} }
+    if (writer) { try { writer.releaseLock(); } catch (e) {} }
+    if (port)   { try { await port.close(); } catch (e) {} }
+  } catch (e) {}
+});
+
+// ============ 启动检查 ============
+(async () => {
+  if (!("serial" in navigator)) {
+    document.body.innerHTML =
+      "<h1>浏览器不支持</h1><p>请使用 Chrome 或 Edge 89+ 打开此页面。</p>";
+    return;
+  }
+
+  // 检测残留端口
+  try {
+    const ports = await navigator.serial.getPorts();
+    if (ports.length > 0) {
+      showBanner("检测到之前使用过的串口。如果连接失败，请刷新页面（F5）。");
+    }
+  } catch (e) {}
+
+  log("工具已就绪。点击「连接设备」开始。");
+})();
+</script>
+</body>
+</html>
