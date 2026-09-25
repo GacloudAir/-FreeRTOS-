@@ -15,11 +15,9 @@ bool PageImageViewer::open(const char* path) {
   currentPath[sizeof(currentPath) - 1] = '\0';// 保存路径
   
   if (!loaded) {
-    // 1-bit 失败，尝试 8-bit 灰度
     loaded = bmp_load_8bit_gray(path, grayBitmap, IMG_W, IMG_H);
-    grayMode = true;
+    if (loaded) grayMode = true;   // 只有真正加载成功才设置
   }
-  
   if (!loaded) return false;
 
   const char* slash = strrchr(path, '/');

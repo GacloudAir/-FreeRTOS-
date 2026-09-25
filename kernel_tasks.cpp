@@ -12,6 +12,7 @@
 #include <task.h>
 #include <queue.h>
 #include <semphr.h>
+#include <cstring>
 
 namespace {
   QueueHandle_t     eventQueue = nullptr;
@@ -67,8 +68,6 @@ namespace {
       }
     }
   }
-
-  #include "time_service.h"
 
   // 在匿名命名空间的 taskBg
   void taskBg(void* pv) 

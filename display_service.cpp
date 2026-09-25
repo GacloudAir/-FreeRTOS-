@@ -41,7 +41,7 @@ namespace DisplayService {
       uint8_t level;
       if      (v < 85)  level = 0;   // 黑
       else if (v < 170) level = 1;   // 灰（用 g1 深灰，不用 g2 浅灰）
-      else              level = 3;   // 白              level = 3;   // 白
+      else              level = 3;   // 白
 
       int byteIdx = i / 4;
       int shift = (3 - (i % 4)) * 2;

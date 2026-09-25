@@ -3,7 +3,6 @@
 #include <Adafruit_GFX.h>
 #include <string.h>
 #include "font_cn_12x12.h"
-#include <string.h>
 
 namespace 
 {

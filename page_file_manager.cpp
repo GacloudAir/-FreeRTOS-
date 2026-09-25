@@ -65,7 +65,7 @@ void PageFileManager::onDraw(GraphicsAPI::Color accent) {
 
     String name = files[idx].name;
     if (name.startsWith("/")) name = name.substring(1);
-    if (name.length() > 11) name = name.substring(0, 10) + ".";
+    if (name.length() > 11) name = name.substring(0, 9) + "..";
     GraphicsAPI::print(name.c_str());
   }
 }

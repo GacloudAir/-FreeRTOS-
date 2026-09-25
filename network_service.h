@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <cstring>
 
 namespace NetworkService {
   void   start();

@@ -1,6 +1,7 @@
 #include "time_service.h"
 #include "network_service.h"
 #include <WiFiEspAT.h>
+#include <string.h>
 
 namespace {
   bool synced = false;

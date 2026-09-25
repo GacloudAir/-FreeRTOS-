@@ -43,11 +43,6 @@ namespace SerialUpload {
       rp2040.reboot();
       return false;
     }
-
-    if (cmd == "PING") {
-      Serial.println("PONG");
-      return false;
-    }
     
     if (cmd.startsWith("SET tz ")) 
     {

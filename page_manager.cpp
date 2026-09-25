@@ -3,6 +3,7 @@
 #include "settings.h"
 #include <Arduino.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
+#include <cstring>
 
 namespace {
   const int MAX_STACK = 4;
