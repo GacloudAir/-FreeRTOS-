@@ -35,6 +35,7 @@ void PageTextViewer::parseLines() {
   lineCount = 0;
   int i = 0;
   int total = strlen(buffer);
+  const int MAX_WIDTH = 204;   // 可视宽度上限
 
   while (i < total && lineCount < MAX_LINES) {
     // 跳过行首空白与换行
@@ -43,13 +44,15 @@ void PageTextViewer::parseLines() {
 
     lineOffset[lineCount] = i;
 
-    // 按像素宽度累计，204px 为可视宽度上限
+    // 按像素宽度累计
     int bytes = 0;
     int pixelW = 0;
-    while (i + bytes < total &&
-           buffer[i + bytes] != '\r' &&
-           buffer[i + bytes] != '\n') {
+    while (i + bytes < total) {
       uint8_t c = (uint8_t)buffer[i + bytes];
+
+      // 遇到换行符，本行结束
+      if (c == '\r' || c == '\n') break;
+
       int charBytes, charW;
       if (c < 0x80) {
         charBytes = 1; charW = 6;
@@ -60,16 +63,19 @@ void PageTextViewer::parseLines() {
       } else {
         charBytes = 1; charW = 6;
       }
-      if (pixelW + charW > 204) break;
+
+      // 宽度超限：本行结束，下一轮从此字符继续（自动换行）
+      if (pixelW + charW > MAX_WIDTH) break;
+
       pixelW += charW;
       bytes += charBytes;
     }
+
     lineLength[lineCount] = bytes;
-
-    // 跳过本行剩余部分（超长截断）
     i += bytes;
-    while (i < total && buffer[i] != '\r' && buffer[i] != '\n') i++;
 
+    // 注意：不跳过剩余内容。若是换行符，下一轮开头会跳过；
+    //      若是宽度超限，下一轮从此字符继续，实现自动换行。
     lineCount++;
   }
 }

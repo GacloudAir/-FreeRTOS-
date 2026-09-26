@@ -110,7 +110,7 @@ namespace SerialUpload {
           received += got;
           lastByte = millis();
         } else {
-          if (millis() - lastByte > 5000) {
+          if (millis() - lastByte > 15000) {
             // 超时
             break;
           }
