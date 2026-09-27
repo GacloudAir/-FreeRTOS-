@@ -6,14 +6,13 @@
 #include "settings.h"
 #include "page_manager.h"
 #include "page_main_menu.h"
+#include "app_main_page.h"
 #include "serial_upload.h"
 #include "network_service.h"
 
 #include <Arduino.h>
 #include <FreeRTOS.h>
 #include <task.h>
-
-static PageMainMenu mainMenu;
 
 void Kernel::init() {
   Serial.begin(115200);
@@ -23,10 +22,10 @@ void Kernel::init() {
   Settings::load();
   DisplayService::init();
 
-  NetworkService::start();      // 空调用，兼容
+  NetworkService::start();
 
   PageManager::init();
-  PageManager::push(&mainMenu);
+  PageManager::resetTo(mainPageApp.getPage());
 
   SerialUpload::init();
   KernelTasks::begin();

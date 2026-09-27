@@ -1,11 +1,13 @@
 #include "app_registry.h"
-#include "app_about.h"
+#include "app_main_page.h"
+#include "app_clock.h"
 #include "app_weather.h"
+#include "app_about.h"
 #include <string.h>
-#include "app_clock.h" 
 
 namespace {
   const App* list[] = {
+    &mainPageApp,
     &clockApp,
     &aboutApp,
     &weatherApp,

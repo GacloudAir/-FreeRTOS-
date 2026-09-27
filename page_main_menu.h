@@ -21,3 +21,5 @@ private:
   const char* labelFor(int idx) const;
   void ensureCursorVisible();
 };
+
+extern PageMainMenu mainMenu;

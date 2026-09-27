@@ -6,6 +6,8 @@
 #include "layout.h"
 #include <string.h>
 
+PageMainMenu mainMenu;
+
 void PageMainMenu::onEnter() {
   cursor = 0;
   scrollTop = 0;

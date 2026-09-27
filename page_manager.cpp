@@ -43,6 +43,17 @@ namespace PageManager {
     page->onEnter();
     dirty = true;
   }
+  
+  void resetTo(Page* page) {
+    while (top > 0) {
+      stack[top]->onExit();
+      top--;
+    }
+    if (top < 0) top = 0;
+    stack[top] = page;
+    page->onEnter();
+    dirty = true;
+  }
 
   Page* current() {
     return (top >= 0) ? stack[top] : nullptr;
