@@ -1,19 +1,13 @@
 #include "time_service.h"
 #include "network_service.h"
 #include <WiFiEspAT.h>
-#include <string.h>
 
 namespace {
   bool synced = false;
   time_t baseEpoch = 0;
   unsigned long baseMillis = 0;
-  int32_t tzOffset = 8 * 3600;   // UTC+8
+  int32_t tzOffset = 8 * 3600;
 
-  unsigned long lastSyncAttempt = 0;
-  const unsigned long SYNC_INTERVAL  = 3600UL * 1000;
-  const unsigned long RETRY_INTERVAL = 30UL * 1000;
-
-  // 手动解析 Unix epoch（避免依赖 timegm）
   time_t buildEpoch(int year, int month, int day,
                     int hour, int min, int sec) {
     static const int daysInMonth[] =
@@ -46,25 +40,19 @@ namespace {
   }
 
   bool doHttpSync() {
-    // 用百度，响应头里含标准 Date 字段
     WiFiClient client;
     if (!client.connect("www.baidu.com", 80)) return false;
 
     client.print("HEAD / HTTP/1.0\r\n");
     client.print("Host: www.baidu.com\r\n");
-    client.print("User-Agent: curl/7.68.0\r\n");
-    client.print("\r\n");
+    client.print("User-Agent: curl/7.68.0\r\n\r\n");
 
     unsigned long t0 = millis();
     while (client.available() == 0) {
-      if (millis() - t0 > 10000) {
-        client.stop();
-        return false;
-      }
+      if (millis() - t0 > 10000) { client.stop(); return false; }
       delay(10);
     }
 
-    // 只读前 512 字节，Date 一定在前面
     String head = "";
     t0 = millis();
     while (client.connected() || client.available()) {
@@ -78,17 +66,13 @@ namespace {
     }
     client.stop();
 
-    // 找 "Date: Wed, 23 Sep 2026 09:04:00 GMT"
     int idx = head.indexOf("Date: ");
     if (idx < 0) return false;
     idx += 6;
 
-    // 解析：Wed, 23 Sep 2026 09:04:00 GMT
-    //       跳过 "Wed, " 或 "Wed "
     int dayStart = idx;
     while (head[dayStart] != ' ' && dayStart < idx + 5) dayStart++;
     while (head[dayStart] == ' ') dayStart++;
-
     int day = head.substring(dayStart, dayStart + 2).toInt();
 
     int monStart = head.indexOf(' ', dayStart) + 1;
@@ -118,20 +102,13 @@ namespace TimeService {
     baseEpoch = 0;
     baseMillis = 0;
     synced = false;
-    lastSyncAttempt = 0;
   }
 
-  void poll() {
-    if (!NetworkService::isConnected()) return;
+  void poll() { }
 
-    unsigned long nowMs = millis();
-    unsigned long interval = synced ? SYNC_INTERVAL : RETRY_INTERVAL;
-    if (nowMs - lastSyncAttempt < interval) return;
-    lastSyncAttempt = nowMs;
-
-    if (!NetworkService::lockUart(5000)) return;
-    doHttpSync();
-    NetworkService::unlockUart();
+  bool syncNow() {
+    if (!NetworkService::isConnected()) return false;
+    return doHttpSync();
   }
 
   bool isSynced() { return synced; }

@@ -9,6 +9,7 @@
 #include "app_main_page.h"
 #include "serial_upload.h"
 #include "network_service.h"
+#include "time_service.h"
 
 #include <Arduino.h>
 #include <FreeRTOS.h>
@@ -21,8 +22,6 @@ void Kernel::init() {
   StorageService::begin();
   Settings::load();
   DisplayService::init();
-
-  NetworkService::start();
 
   PageManager::init();
   PageManager::resetTo(mainPageApp.getPage());

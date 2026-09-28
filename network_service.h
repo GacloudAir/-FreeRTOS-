@@ -1,14 +1,15 @@
 #pragma once
 #include <Arduino.h>
-#include <cstring>
 
 namespace NetworkService {
-  void   start();
-  void   poll();
-  bool   isConnected();
-  bool   isConfigured();     // ← 新增：是否已配置 WiFi
-  String getTimeString();
+  void start();                      // 兼容保留，空实现
+  void poll();                       // 兼容保留，空实现
 
-  bool   lockUart(unsigned long timeoutMs = 0);
-  void   unlockUart();
+  bool connectOnce(unsigned long timeoutMs = 20000);  // 同步连接
+  void disconnect();                 // 断开 WiFi
+
+  bool isConnected();
+  bool isConfigured();
+
+  String getTimeString();
 }

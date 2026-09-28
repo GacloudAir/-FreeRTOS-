@@ -2,8 +2,6 @@
 #include "storage_service.h"
 #include <WiFiEspAT.h>
 #include <ArduinoJson.h>
-#include <FreeRTOS.h>
-#include <semphr.h>
 
 namespace {
   #define ESP_RX_PIN  1
@@ -11,30 +9,15 @@ namespace {
 
   const char* WIFI_CONFIG_PATH = "/wifi.json";
 
-  enum State {
-    ST_IDLE,
-    ST_UNCONFIGURED,     // 无 /wifi.json
-    ST_CONNECTING,
-    ST_CONNECTED,
-    ST_RETRY_WAIT
-  };
-
-  State state = ST_IDLE;
-  unsigned long stateEnterMs = 0;
-
-  const unsigned long CONNECT_TIMEOUT_MS = 10000;
-  const unsigned long RETRY_DELAY_MS     = 5000;
-
-  SemaphoreHandle_t uartMutex = nullptr;
-
+  bool hwInitialized = false;
   String cachedSSID;
   String cachedPassword;
-  bool   configLoaded = false;
 
   bool loadWifiConfig() {
-    if (!StorageService::exists(WIFI_CONFIG_PATH)) {
-      return false;
-    }
+    cachedSSID = "";
+    cachedPassword = "";
+
+    if (!StorageService::exists(WIFI_CONFIG_PATH)) return false;
     String json = StorageService::read(WIFI_CONFIG_PATH);
     if (json.length() == 0) return false;
 
@@ -49,106 +32,59 @@ namespace {
     cachedPassword = String(p);
     return true;
   }
+
+  void ensureHardware() {
+    if (hwInitialized) return;
+    Serial1.setRX(ESP_RX_PIN);
+    Serial1.setTX(ESP_TX_PIN);
+    Serial1.begin(115200);
+    delay(100);
+    WiFi.init(&Serial1);
+    hwInitialized = true;
+  }
 }
 
 namespace NetworkService {
 
-  bool lockUart(unsigned long timeoutMs) {
-    if (!uartMutex) {
-      uartMutex = xSemaphoreCreateMutex();
-      if (!uartMutex) return false;
-    }
-    if (timeoutMs == 0) {
-      return xSemaphoreTake(uartMutex, 0) == pdTRUE;
-    }
-    return xSemaphoreTake(uartMutex, pdMS_TO_TICKS(timeoutMs)) == pdTRUE;
-  }
+  void start() { }
+  void poll()  { }
 
-  void unlockUart() {
-    if (uartMutex) xSemaphoreGive(uartMutex);
-  }
+  bool connectOnce(unsigned long timeoutMs) {
+    if (!loadWifiConfig()) return false;
+    if (WiFi.status() == WL_CONNECTED) return true;
 
-  void start() {
-    // 空实现
-  }
+    ensureHardware();
 
-  void poll() {
-    if (!lockUart(0)) return;
+    // 清理遗留状态
+    WiFi.disconnect();
+    delay(200);
 
-    unsigned long now = millis();
+    WiFi.begin(cachedSSID.c_str(), cachedPassword.c_str());
 
-    // ============ 首次初始化 ============
-    if (state == ST_IDLE) {
-      // 尝试读取配置
-      if (!loadWifiConfig()) {
-        state = ST_UNCONFIGURED;
-        configLoaded = false;
-        unlockUart();
-        return;
+    unsigned long t0 = millis();
+    while (WiFi.status() != WL_CONNECTED) {
+      if (millis() - t0 > timeoutMs) {
+        WiFi.disconnect();
+        return false;
       }
+      delay(200);
+    }
+    return true;
+  }
 
-      // 有配置，初始化 ESP8285
-      Serial1.setRX(ESP_RX_PIN);
-      Serial1.setTX(ESP_TX_PIN);
-      Serial1.begin(115200);
-      delay(100);
-
-      WiFi.init(&Serial1);
+  void disconnect() {
+    if (WiFi.status() == WL_CONNECTED) {
       WiFi.disconnect();
-      delay(1000);
-      WiFi.begin(cachedSSID.c_str(), cachedPassword.c_str());
-
-      state = ST_CONNECTING;
-      stateEnterMs = now;
-      configLoaded = true;
-      unlockUart();
-      return;
+      delay(100);
     }
-
-    // ============ 状态推进 ============
-    switch (state) {
-      case ST_UNCONFIGURED:
-        // 不做任何事，等待外部写入 /wifi.json 并重启
-        break;
-
-      case ST_CONNECTING:
-        if (WiFi.status() == WL_CONNECTED) {
-          state = ST_CONNECTED;
-          stateEnterMs = now;
-        } else if (now - stateEnterMs >= CONNECT_TIMEOUT_MS) {
-          state = ST_RETRY_WAIT;
-          stateEnterMs = now;
-        }
-        break;
-
-      case ST_CONNECTED:
-        if (WiFi.status() != WL_CONNECTED) {
-          state = ST_RETRY_WAIT;
-          stateEnterMs = now;
-        }
-        break;
-
-      case ST_RETRY_WAIT:
-        if (now - stateEnterMs >= RETRY_DELAY_MS) {
-          WiFi.begin(cachedSSID.c_str(), cachedPassword.c_str());
-          state = ST_CONNECTING;
-          stateEnterMs = now;
-        }
-        break;
-
-      default:
-        break;
-    }
-
-    unlockUart();
   }
 
   bool isConnected() {
-    return state == ST_CONNECTED && WiFi.status() == WL_CONNECTED;
+    return WiFi.status() == WL_CONNECTED;
   }
 
   bool isConfigured() {
-    return configLoaded;
+    return StorageService::exists(WIFI_CONFIG_PATH);
   }
 
   String getTimeString() {

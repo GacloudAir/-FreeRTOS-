@@ -4,6 +4,38 @@
 
 ## [未发布]
 
+---
+
+## [0.11.0] - 2026-09-28
+
+### 新增
+- **WiFi 按需开启**：不再保持长连接，改为"用一次断一次"
+  - `NetworkService::connectOnce(timeout)`：同步连接，成功返回 true
+  - `NetworkService::disconnect()`：断开并让 ESP8285 空闲
+  - 平均电流从 ~80mA 降至 <25mA
+- **天气数据缓存**（`weather_service.h/.cpp`）
+  - `WeatherService::fetch()`：拉取 Open-Meteo 数据并缓存
+  - `WeatherService::isFresh(maxAgeMs)`：判断数据是否过期
+  - `WeatherService::get()`：读取缓存（含时间戳）
+- **整点自动同步**：taskBg 在以下时机自动同步
+  - 开机后 5 秒首次同步
+  - 每小时整点（NTP + 天气）
+  - 天气数据超过 55 分钟
+  - 同步失败后 5 分钟重试
+
+### 变更
+- `time_service` 从"poll() 内部判断"改为"`syncNow()` 显式触发"
+- `app_main_page` 和 `app_weather` 改为从 `WeatherService` 读取缓存，不再各自发 HTTP 请求
+- `kernel.cpp` 移除 `NetworkService::start()` 调用（不再需要开机连接）
+- Home 页天气信息来自缓存，无网络时显示 `Waiting weather...`
+
+### 修复
+- **开机自动刷新**：`taskUI` 启动后主动调用一次 `flushIfDirty()`，无需按键
+- **联网后自动刷新**：`taskUI` 每 500ms 定期检查 `dirty`，配合信号量兜底
+  - 修复了信号量丢失导致屏幕一直停在 `Waiting weather...` 的问题
+
+## [未发布]
+
 ### 计划
 - **M10**：系统设置完善（WiFi 凭据界面、时区配置、刷新模式差异化）
 - **M11**：时钟应用增强（NTP 自动同步、闹钟）
@@ -12,7 +44,21 @@
 - **M14**：OTA 更新
 - **M15**：PCB 精简与亚克力外壳
 
----
+## [0.10.0] - 2026-09-27
+
+### 新增
+- **Home 主页面应用**（`app_main_page.h/.cpp`）
+  - 开机自动进入，10 分钟无操作自动返回
+  - 左上角显示天气图标 + 温度 + 天气描述 + 湿度
+  - 中间显示大字时间和日期
+  - 长按 OK 进入主菜单
+  - 天气每 55 分钟自动刷新（整点附近）
+  - 时钟每 5 分钟自动刷新
+- **天气图标**（`weather_icons.h`）
+  - 6 个 16x16 1-bit 图标：晴、多云、雾、雨、雪、雷
+  - WMO 天气代码 → 图标 / 英文描述映射函数
+- `Page` 基类增加 `onTick()` 虚函数，供内核定期调用
+- `PageManager::resetTo()` 接口：清空页面栈，只保留指定页面
 
 ## [0.9.0] - 2026-09-25
 
