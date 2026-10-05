@@ -1,9 +1,9 @@
 #include "input_service.h"
 
 namespace {
-  const int PIN_UP   = 11;
-  const int PIN_DOWN = 12;
-  const int PIN_OK   = 13;
+  const int PIN_UP   = 16;
+  const int PIN_DOWN = 17;
+  const int PIN_OK   = 18;
   const unsigned long LONG_PRESS_MS = 800;
 
   int lastButton = InputService::BTN_NONE;

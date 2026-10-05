@@ -54,7 +54,7 @@
 #define EPD_CS_PIN        5
 #define EPD_RST_PIN       2
 #define EPD_DC_PIN        3
-#define EPD_BUSY_PIN      10
+#define EPD_BUSY_PIN      4
 
 #define SET_CS_HIGH     digitalWrite(EPD_CS_PIN, HIGH)
 #define SET_CS_LOW      digitalWrite(EPD_CS_PIN, LOW)
