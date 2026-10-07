@@ -9,4 +9,7 @@ namespace DisplayService {
   void flush();
   int width();
   int height();
+
+  // 空闲超过 idleMs 就把墨水屏断电（省电）；下次刷新会自动重新上电。
+  void sleepIfIdle(unsigned long idleMs);
 }

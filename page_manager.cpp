@@ -6,7 +6,9 @@
 #include <cstring>
 
 namespace {
-  const int MAX_STACK = 4;
+  // 正常最深层级：首页(0) → 主菜单(1) → 文件管理(2) → 文本/图片(3) → 删除确认(4)
+  // 原来是 4，正好差一层：push(确认框) 被静默丢弃，导致"删除文件"永远弹不出确认框。
+  const int MAX_STACK = 8;
   Page* stack[MAX_STACK];
   int   top   = -1;
   bool  dirty = false;
@@ -19,12 +21,17 @@ namespace PageManager {
     dirty = false;
   }
 
-  void push(Page* page) {
-    if (top + 1 >= MAX_STACK) return;
+  bool push(Page* page) {
+    if (page == nullptr) return false;
+    if (top + 1 >= MAX_STACK) {
+      Serial.println("[page] ERR: stack full, push ignored");
+      return false;
+    }
     if (top >= 0) stack[top]->onExit();
     stack[++top] = page;
     page->onEnter();
     dirty = true;
+    return true;
   }
 
   void pop() {
@@ -38,18 +45,22 @@ namespace PageManager {
   }
 
   void replace(Page* page) {
-    if (top >= 0) stack[top]->onExit();
+    if (page == nullptr) return;
+    if (top < 0) { push(page); return; }   // 空栈时退化为 push，避免写 stack[-1]
+    stack[top]->onExit();
     stack[top] = page;
     page->onEnter();
     dirty = true;
   }
   
   void resetTo(Page* page) {
-    while (top > 0) {
+    if (page == nullptr) return;
+    // 连栈底一起退栈，onExit/onEnter 生命周期才对称
+    while (top >= 0) {
       stack[top]->onExit();
       top--;
     }
-    if (top < 0) top = 0;
+    top = 0;
     stack[top] = page;
     page->onEnter();
     dirty = true;

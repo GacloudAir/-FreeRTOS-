@@ -1,6 +1,7 @@
 #include "app_clock.h"
 #include "page_manager.h"
 #include "time_service.h"
+#include "kernel_tasks.h"
 #include "layout.h"
 #include <Fonts/FreeSansBold24pt7b.h>
 
@@ -46,8 +47,11 @@ void PageClock::onDraw(GraphicsAPI::Color accent) {
 
 void PageClock::onInput(InputService::Button btn) {
   if (btn == InputService::BTN_UP) {
-    // 手动强制同步
-    TimeService::start();
+    // 请求 taskBg 立即重新同步。
+    // 注意：这里不能调用 TimeService::start()——它只是把 synced 清成 false，
+    // 而 taskBg 的整点判断又要求 isSynced() 为真，结果会让时钟永远不再自动同步。
+    KernelTasks::requestSync();
+    // 时间保持显示不变；同步完成后 taskBg 会 markDirty 并刷新屏幕。
     PageManager::markDirty();
   }
 }

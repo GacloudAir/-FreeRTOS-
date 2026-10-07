@@ -4,7 +4,7 @@
 
 namespace PageManager {
   void init();
-  void push(Page* page);
+  bool push(Page* page);   // false = 栈已满，页面未被压入
   void pop();
   void replace(Page* page);
   void resetTo(Page* page);   //清空栈，只留指定页面

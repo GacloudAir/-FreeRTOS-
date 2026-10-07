@@ -1,5 +1,8 @@
 #include "EPaper_213_Driver.h"
 
+// 把每个阶段的耗时打到 USB 串口（[epd] 前缀，串口工具会跳过这类行）。置 0 关闭。
+#define EPD_TRACE 1
+
 const uint8_t bw2grey[] =
 {
   /*0b00000000,0b00000011,0b00001100,0b00001111,
@@ -132,9 +135,32 @@ void EPaper_InitDisplay(void)
   WriteData(0x0E);
 }
 /**************************************************************************/
-void EPaper_Init(void)
+// 面板是否已上电并灌好 LUT。保持上电可省掉每帧的复位+重灌 LUT+断电延时。
+static bool s_awake = false;
+static uint8_t s_pfs = EPD_PFS_DEFAULT;
+
+bool EPaper_IsAwake(void) { return s_awake; }
+
+void EPaper_SetFrameRate(uint8_t v)
 {
+  s_pfs = v;
+  // 已上电就立即写入；否则留给 EnsureInit 在复位之后写
+  // （EPaper_InitDisplay() 会把 0x30 写回它自己的默认值，顺序很关键）。
+  if (s_awake) {
+    WriteCommand(0x30);
+    WriteData(v);
+  }
+}
+
+void EPaper_EnsureInit(void)
+{
+  if (s_awake) return;
+#if EPD_TRACE
+  const unsigned long t0 = millis();
+#endif
   EPaper_InitDisplay();
+  WriteCommand(0x30);      // 帧率：覆盖 InitDisplay 写入的默认值
+  WriteData(s_pfs);
   WriteCommand(0x20);
   WriteMultiData(lut_20_vcom0,15);
   WriteCommand(0x21);
@@ -151,12 +177,57 @@ void EPaper_Init(void)
   WriteMultiData(lut_26_red0, 15);
   WriteCommand(0x27);
   WriteMultiData(lut_27_red1, 15);
+  s_awake = true;
+#if EPD_TRACE
+  Serial.print("[epd] wake+lut ");
+  Serial.print(millis() - t0);
+  Serial.println(" ms");
+#endif
+}
+
+// 兼容旧调用点：幂等
+void EPaper_Init(void)
+{
+  EPaper_EnsureInit();
+}
+
+void EPaper_Sleep(void)
+{
+  if (!s_awake) return;
+  // 先清标志再掉电。EPaper_PowerOff() 内含 1.5s 延时，且会先把 0x50/0x82/0x01
+  // 写成掉电值；若此时有别的任务调用 EPaper_EnsureInit()，看到 s_awake 仍为 true
+  // 就会直接返回、不做真正的重新初始化，于是那一帧在掉电寄存器状态下刷新（白屏）。
+  s_awake = false;
+#if EPD_TRACE
+  const unsigned long t0 = millis();
+#endif
+  EPaper_PowerOff();
+#if EPD_TRACE
+  Serial.print("[epd] sleep ");
+  Serial.print(millis() - t0);
+  Serial.println(" ms");
+#endif
 }
 /**************************************************************************/
 void EPaper_refresh(void)
 {
+  const unsigned long t0 = millis();
   WriteCommand(0x12); //display refresh
-  Wait_Busy(full_refresh_time);
+  const uint8_t timedOut = Wait_Busy(full_refresh_time);
+  const unsigned long dt = millis() - t0;
+#if EPD_TRACE
+  Serial.print("[epd] busy ");
+  Serial.print(dt);
+  Serial.print(" ms");
+  Serial.println();
+#endif
+  if (timedOut) {
+    // 面板没有在超时内释放 BUSY。原实现直接丢弃了这个返回值，面板会永远卡在坏状态。
+    // 这里强制一次硬件复位 + 重新初始化，让驱动自愈。
+    Serial.println("[epd] BUSY timeout -> hard reset + re-init");
+    s_awake = false;
+    EPaper_EnsureInit();
+  }
 }
 /**************************************************************************/
 void EPaper_WriteBWImage(const uint8_t* black,uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool invert, bool mirror_y)
@@ -169,7 +240,7 @@ void EPaper_WriteBWImage(const uint8_t* black,uint8_t x, uint8_t y, uint8_t w, u
   wb=(w + 7) / 8;
   x -= x % 8; // byte boundary
   w = wb * 8; // byte boundary
-  EPaper_Init();
+  EPaper_EnsureInit();
   WriteCommand(0x10);
   for (i = 0; i < (uint8_t)EPD_HEIGHT; i++)
   {
@@ -189,7 +260,6 @@ void EPaper_WriteBWImage(const uint8_t* black,uint8_t x, uint8_t y, uint8_t w, u
     }
   }
   EPaper_refresh();
-  EPaper_PowerOff();
 }
 /**************************************************************************/
 void EPaper_WriteGreyImage(const uint8_t* Grey,uint8_t x, uint8_t y, uint8_t w, uint8_t h, bool invert, bool mirror_y)
@@ -202,7 +272,7 @@ void EPaper_WriteGreyImage(const uint8_t* Grey,uint8_t x, uint8_t y, uint8_t w, 
   wb=(w + 7) / 8;
   x -= x % 8; // byte boundary
   w = wb * 8; // byte boundary
-  EPaper_Init();
+  EPaper_EnsureInit();
   WriteCommand(0x10);
   for (i = 0; i < (uint8_t)EPD_HEIGHT; i++)
   {
@@ -226,7 +296,6 @@ void EPaper_WriteGreyImage(const uint8_t* Grey,uint8_t x, uint8_t y, uint8_t w, 
     }
   }
   EPaper_refresh();
-  EPaper_PowerOff();
 }
 /**************************************************************************/
 
